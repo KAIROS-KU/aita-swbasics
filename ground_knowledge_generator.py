@@ -23,6 +23,9 @@ def question_type_classifier(key_knowledge):
                 만약 그 어디에도 해당할거 같지 않다면 "해당없음"을 답변해.
 
                 [데이터묶음 목록]: {list(data_type_dict.keys())}
+
+                ex) 파이썬에서 리스트랑 튜플 차이가 뭐야?
+                <response>: "코딩"
                 """
             },
             {
