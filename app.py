@@ -117,10 +117,7 @@ def chat_process(txt):
 
     answer = answer_generator.answer_generator(txt, ground_knowledge)
     return ground_knowledge, answer
-
-for sender, message in st.session_state.chat_history:
-    with st.chat_message("user" if sender == "user" else "assistant"):
-        st.markdown(message)
+    
 
 # 사용자 입력 받기
 user_input = st.chat_input("질문을 입력하세요...")
@@ -131,6 +128,9 @@ if user_input:
     st.session_state.chat_history.append(("user", user_input))
     is_main_question = True
 
+    with st.chat_message("user"):
+        st.markdown(user_input)
+    
     with st.chat_message("assistant"):
         placeholder = st.empty()
         placeholder.markdown("AI 조교가 생각 중입니다... 🤔")
@@ -175,13 +175,11 @@ if user_input:
     
     save_chat_to_db(user_input, assistant_response, is_main_question)
 
-    # # AI 응답을 채팅창에 추가
-    # st.session_state.chat_history.append(("ai", assistant_response))
+    # AI 응답을 채팅창에 추가
+    st.session_state.chat_history.append(("ai", assistant_response))
 
     # 현재 질문을 이전 질문으로 저장
     st.session_state.prev_question = user_input
-
-    st.rerun()
 
 # # 채팅 UI 출력
 # for sender, message in st.session_state.chat_history:
