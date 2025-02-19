@@ -9,7 +9,7 @@ supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_API_KEY)
 class KnowledgeClassifyResponse(BaseModel):
     classification: str
 
-def ground_knowledge_generator(key_knowledge):
+def question_type_classifier(key_knowledge):
     supabase_response = supabase.table("DATA_TYPE").select("id", "data_type").execute()
     data_type_dict = {row["data_type"]: row["id"] for row in supabase_response.data}
     completion_1 = client.beta.chat.completions.parse(
@@ -32,6 +32,12 @@ def ground_knowledge_generator(key_knowledge):
         ]
     )
     knowledge_classification = completion_1.choices[0].message.parsed.classification
+    return knowledge_classification
+
+def ground_knowledge_generator(key_knowledge):
+    supabase_response = supabase.table("DATA_TYPE").select("id", "data_type").execute()
+    data_type_dict = {row["data_type"]: row["id"] for row in supabase_response.data}
+    knowledge_classification = question_type_classifier(key_knowledge)
 
     if knowledge_classification in data_type_dict:
         if knowledge_classification == "코딩":

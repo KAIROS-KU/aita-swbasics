@@ -60,11 +60,12 @@ def coding_question_process_two(txt):
     coding_answer = lorax_client.generate(prompt, adapter_id=config.PREDIBASE_MODEL_TWO_ADAPT_ID).generated_text
     return coding_answer
 
-def save_chat_to_db(user_question, ai_answer, is_main_question):
+def save_chat_to_db(user_question, ai_answer, is_main_question, question_type):
     data = {
         "question": user_question,
         "answer": ai_answer,
-        "main_question": is_main_question
+        "main_question": is_main_question,
+        "question_type": question_type
     }
     supabase.table("CONSULTING_CHAT").insert(data).execute()
     return
@@ -97,11 +98,12 @@ if "prev_answer" not in st.session_state:
 # AI 조교의 응답을 생성하는 함수
 def chat_process(txt):
     key_knowledge = key_knowledge_generator.key_knowledge_generator(txt)
+    question_type = ground_knowledge_generator.question_type_classifier(key_knowledge)
     ground_knowledge = ground_knowledge_generator.ground_knowledge_generator(key_knowledge)
 
     # "해당없음"일 경우 특정 메시지 반환
     if ground_knowledge.strip() == "해당없음":
-        return ground_knowledge, "❌ 해당 질문은 답변할 수 없습니다. 담당 조교님 혹은 교수님께 직접 문의해보세요."
+        return ground_knowledge, "❌ 해당 질문은 답변할 수 없습니다. 담당 조교님 혹은 교수님께 직접 문의해보세요.", "해당없음"
     elif ground_knowledge.strip() == "코딩":
         coding_functions = [coding_question_process_one, coding_question_process_two]
         
@@ -110,13 +112,13 @@ def chat_process(txt):
         for func in coding_functions:
             try:
                 answer = func(txt)
-                return ground_knowledge, answer
+                return ground_knowledge, answer, "코딩"
             except Exception as e:
                 return
         return answer_generator.answer_generator(txt, ground_knowledge)
 
     answer = answer_generator.answer_generator(txt, ground_knowledge)
-    return ground_knowledge, answer
+    return ground_knowledge, answer, question_type
     
 # 채팅 UI 출력
 for sender, message in st.session_state.chat_history:
@@ -152,24 +154,26 @@ if user_input:
             )
         else:
             # 새로운 질문 처리
-            ground_knowledge, assistant_response = chat_process(user_input)
+            ground_knowledge, assistant_response, question_type = chat_process(user_input)
             
             # "해당없음"일 경우 처리 (더 진행하지 않음)
             if assistant_response.startswith("❌"):
                 st.session_state.chat_history.append(("ai", assistant_response))
                 st.session_state.prev_question = user_input  # 이전 질문 업데이트
+                save_chat_to_db(user_input, assistant_response, True, question_type)
                 st.rerun()  # UI 새로고침
             else:
                 st.session_state.prev_ground_knowledge = ground_knowledge
                 st.session_state.prev_answer = assistant_response
     else:
         # 첫 질문 처리
-        ground_knowledge, assistant_response = chat_process(user_input)
+        ground_knowledge, assistant_response, question_type = chat_process(user_input)
         
         # "해당없음"일 경우 처리 (더 진행하지 않음)
         if assistant_response.startswith("❌"):
             st.session_state.chat_history.append(("ai", assistant_response))
             st.session_state.prev_question = user_input  # 이전 질문 업데이트
+            save_chat_to_db(user_input, assistant_response, True, question_type)
             st.rerun()  # UI 새로고침
         else:
             st.session_state.prev_ground_knowledge = ground_knowledge
@@ -177,7 +181,7 @@ if user_input:
     
     placeholder.markdown(assistant_response)
     
-    save_chat_to_db(user_input, assistant_response, is_main_question)
+    save_chat_to_db(user_input, assistant_response, is_main_question, question_type)
 
     # AI 응답을 채팅창에 추가
     st.session_state.chat_history.append(("ai", assistant_response))
