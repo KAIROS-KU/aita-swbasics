@@ -181,6 +181,8 @@ if user_input:
     # 현재 질문을 이전 질문으로 저장
     st.session_state.prev_question = user_input
 
+    st.rerun()
+
 # # 채팅 UI 출력
 # for sender, message in st.session_state.chat_history:
 #     with st.chat_message("user" if sender == "user" else "assistant"):
