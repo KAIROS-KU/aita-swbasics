@@ -76,17 +76,17 @@ st.set_page_config(page_title="AI 조교", page_icon="🤖")
 st.title("🤖 AI 조교")
 
 with st.sidebar:
-    st.markdown("## ⚡ AI 조교 사용 안내")
+    st.markdown("# ⚡ AI 조교 사용 안내")
     
     st.info(
         """
-        ⏳ **정확한 답변을 위해 최대 1~2분 소요될 수 있습니다.**  
-        🚨 **새로고침 시 채팅 내용이 사라지니 주의해주세요!**  
+        - **정확한 답변을 위해 최대 1~2분 소요될 수 있습니다.**  
+        - **새로고침 시 채팅 내용이 사라지니 주의해주세요!**  
         """,
         icon="💡",
     )
     
-    st.markdown("### 📝 예제 질문")
+    st.markdown("# 📝 예제 질문")
     st.markdown(
         """
         - 🎯 **"이번 코들 과제는 기한이 언제까지야?"**  
