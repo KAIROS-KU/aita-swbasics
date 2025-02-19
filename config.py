@@ -1,0 +1,11 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PREDIBASE_API_TOKEN = os.getenv("PREDIBASE_API_TOKEN")
+PREDIBASE_MODEL_ONE_ADAPT_ID = os.getenv("PREDIBASE_MODEL_ONE_ADAPT_ID")
+PREDIBASE_MODEL_TWO_ADAPT_ID = os.getenv("PREDIBASE_MODEL_TWO_ADAPT_ID")
