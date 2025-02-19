@@ -76,7 +76,7 @@ st.set_page_config(page_title="AI 조교", page_icon="🤖")
 st.title("🤖 AI 조교")
 
 with st.sidebar:
-    st.markdown("# ⚡ AI 조교 사용 안내")
+    st.markdown("# **⚡ AI 조교 사용 안내**")
     
     st.info(
         """
@@ -86,7 +86,7 @@ with st.sidebar:
         icon="💡",
     )
     
-    st.markdown("# 📝 예제 질문")
+    st.markdown("# **📝 예제 질문**")
     st.markdown(
         """
         - 🎯 **"이번 코들 과제는 기한이 언제까지야?"**  
