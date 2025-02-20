@@ -106,6 +106,8 @@ if "prev_ground_knowledge" not in st.session_state:
     st.session_state.prev_ground_knowledge = None
 if "prev_answer" not in st.session_state:
     st.session_state.prev_answer = None
+if "prev_question_type" not in st.session_state:
+    st.session_state.prev_question_type = None
 
 # AI 조교의 응답을 생성하는 함수
 def chat_process(txt):
