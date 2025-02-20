@@ -128,9 +128,9 @@ def chat_process(txt):
             except Exception as e:
                 return
         return "코딩", answer_generator.answer_generator(txt, ground_knowledge), "코딩"
-
-    answer = answer_generator.answer_generator(txt, ground_knowledge)
-    return ground_knowledge, answer, question_type
+    else:
+        answer = answer_generator.answer_generator(txt, ground_knowledge)
+        return ground_knowledge, answer, question_type
     
 # 채팅 UI 출력
 for sender, message in st.session_state.chat_history:
