@@ -164,6 +164,8 @@ if user_input:
                 st.session_state.prev_answer,
                 user_input
             )
+            ground_knowledge = st.session_state.prev_ground_knowledge
+            question_type = st.session_state.prev_question_type
         else:
             # 새로운 질문 처리
             is_main_question = True
@@ -172,12 +174,17 @@ if user_input:
             # "해당없음"일 경우 처리 (더 진행하지 않음)
             if assistant_response.startswith("❌"):
                 st.session_state.chat_history.append(("ai", assistant_response))
-                st.session_state.prev_question = user_input  # 이전 질문 업데이트
+                st.session_state.prev_ground_knowledge = ground_knowledge
+                st.session_state.prev_question = user_input
+                st.session_state.prev_question_type = question_type
+                st.session_state.prev_answer = assistant_response
                 save_chat_to_db(user_input, assistant_response, True, question_type)
                 st.rerun()  # UI 새로고침
             else:
                 st.session_state.prev_ground_knowledge = ground_knowledge
                 st.session_state.prev_answer = assistant_response
+                st.session_state.prev_question_type = question_type
+                st.session_state.prev_question = user_input
     else:
         # 첫 질문 처리
         ground_knowledge, assistant_response, question_type = chat_process(user_input)
@@ -185,12 +192,17 @@ if user_input:
         # "해당없음"일 경우 처리 (더 진행하지 않음)
         if assistant_response.startswith("❌"):
             st.session_state.chat_history.append(("ai", assistant_response))
-            st.session_state.prev_question = user_input  # 이전 질문 업데이트
+            st.session_state.prev_ground_knowledge = ground_knowledge
+            st.session_state.prev_answer = assistant_response
+            st.session_state.prev_question = user_input
+            st.session_state.prev_question_type = question_type
             save_chat_to_db(user_input, assistant_response, True, question_type)
             st.rerun()  # UI 새로고침
         else:
             st.session_state.prev_ground_knowledge = ground_knowledge
             st.session_state.prev_answer = assistant_response
+            st.session_state.prev_question = user_input
+            st.session_state.prev_question_type = question_type
     
     placeholder.markdown(assistant_response)
     
