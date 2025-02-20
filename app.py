@@ -127,7 +127,7 @@ def chat_process(txt):
                 return ground_knowledge, answer, "코딩"
             except Exception as e:
                 return
-        return answer_generator.answer_generator(txt, ground_knowledge)
+        return "코딩", answer_generator.answer_generator(txt, ground_knowledge), "코딩"
 
     answer = answer_generator.answer_generator(txt, ground_knowledge)
     return ground_knowledge, answer, question_type
@@ -166,6 +166,7 @@ if user_input:
             )
         else:
             # 새로운 질문 처리
+            is_main_question = True
             ground_knowledge, assistant_response, question_type = chat_process(user_input)
             
             # "해당없음"일 경우 처리 (더 진행하지 않음)
