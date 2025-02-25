@@ -48,7 +48,7 @@ def coding_question_process_one(txt):
         f"<|im_start|>user\n{txt}<|im_end|>\n<|im_start|>assistant\n"
     )
     lorax_client = pb.deployments.client("solar-1-mini-chat-240612")
-    coding_answer = lorax_client.generate(prompt, adapter_id=config.PREDIBASE_MODEL_ONE_ADAPT_ID).generated_text
+    coding_answer = lorax_client.generate(prompt, temperature=0.7, adapter_id=config.PREDIBASE_MODEL_ONE_ADAPT_ID).generated_text
     return coding_answer
 
 def coding_question_process_two(txt):
@@ -57,7 +57,7 @@ def coding_question_process_two(txt):
         f"<|im_start|>user\n{txt}<|im_end|>\n<|im_start|>assistant\n"
     )
     lorax_client = pb.deployments.client("solar-1-mini-chat-240612")
-    coding_answer = lorax_client.generate(prompt, adapter_id=config.PREDIBASE_MODEL_TWO_ADAPT_ID).generated_text
+    coding_answer = lorax_client.generate(prompt, temperature=0.7, adapter_id=config.PREDIBASE_MODEL_TWO_ADAPT_ID).generated_text
     return coding_answer
 
 def save_chat_to_db(user_question, ai_answer, is_main_question, question_type):
