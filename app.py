@@ -7,6 +7,7 @@ import answer_generator
 import ground_knowledge_generator
 import tail_question_decider
 import tail_question_process
+import follow_up_question_generator
 from predibase import Predibase
 import random
 
@@ -71,6 +72,7 @@ def save_chat_to_db(user_question, ai_answer, is_main_question, question_type):
     return
 
 
+
 # Streamlit UI 설정
 st.set_page_config(page_title="AI 조교", page_icon="🤖")
 st.title("🤖 AI 조교")
@@ -108,6 +110,10 @@ if "prev_answer" not in st.session_state:
     st.session_state.prev_answer = None
 if "prev_question_type" not in st.session_state:
     st.session_state.prev_question_type = None
+if "follow_up_question" not in st.session_state:
+    st.session_state.follow_up_question = None
+if "follow_up_clicked" not in st.session_state:
+    st.session_state.follow_up_clicked = False
 
 # AI 조교의 응답을 생성하는 함수
 def chat_process(txt):
@@ -117,8 +123,9 @@ def chat_process(txt):
 
     # "해당없음"일 경우 특정 메시지 반환
     if ground_knowledge.strip() == "해당없음":
-        return ground_knowledge, "❌ 해당 질문은 답변할 수 없습니다. 담당 조교님 혹은 교수님께 직접 문의해보세요.", "해당없음"
+        return ground_knowledge, "❌ 해당 질문은 답변할 수 없습니다. 담당 조교님 혹은 교수님께 직접 문의해보세요.", "해당없음", None
     elif ground_knowledge.strip() == "코딩":
+        follow_up_question = follow_up_question_generator.follow_up_question_generator(txt)
         coding_functions = [coding_question_process_one, coding_question_process_two]
         
         # 랜덤으로 선택 후 실행, 오류 발생 시 다른 함수 실행
@@ -126,39 +133,74 @@ def chat_process(txt):
         for func in coding_functions:
             try:
                 answer = func(txt)
-                return ground_knowledge, answer, "코딩"
+                return ground_knowledge, answer, "코딩", follow_up_question
             except Exception as e:
                 return
-        return "코딩", answer_generator.answer_generator(txt, ground_knowledge), "코딩"
+        return "코딩", answer_generator.answer_generator(txt, ground_knowledge), "코딩", follow_up_question
     else:
         answer = answer_generator.answer_generator(txt, ground_knowledge)
-        return ground_knowledge, answer, question_type
+        return ground_knowledge, answer, question_type, None
     
 # 채팅 UI 출력
 for sender, message in st.session_state.chat_history:
     with st.chat_message("user" if sender == "user" else "assistant"):
         st.markdown(message)
 
-# 사용자 입력 받기
-user_input = st.chat_input("질문을 입력하세요...")
-
-# 사용자가 입력했을 때 실행
-if user_input:
-    # 사용자 메시지를 채팅창에 추가
-    st.session_state.chat_history.append(("user", user_input))
-    is_main_question = True
-
-    with st.chat_message("user"):
-        st.markdown(user_input)
+if st.session_state.follow_up_clicked and st.session_state.follow_up_question:
+    # 후속질문을 처리
+    st.session_state.follow_up_clicked = False  # 클릭 상태 해제
     
+    # user 발화
+    fup = st.session_state.follow_up_question
+    st.session_state.chat_history.append(("user", fup))
+    with st.chat_message("user"):
+        st.markdown(fup)
+
     with st.chat_message("assistant"):
         placeholder = st.empty()
         placeholder.markdown("AI 조교가 생각 중입니다... 🤔")
-    
-    if st.session_state.prev_question:  # 이전 질문이 있으면 꼬리 질문 여부 확인
-        is_tail_question = tail_question_decider.tail_question_generator(st.session_state.prev_question, user_input)
-        
+
+    # 후속질문에 대한 답변 생성
+    ground_knowledge, assistant_response, question_type, new_followup = chat_process(fup)
+
+    placeholder.markdown(assistant_response)
+    st.session_state.chat_history.append(("assistant", assistant_response))
+
+    # DB 저장
+    save_chat_to_db(fup, assistant_response, True, question_type)
+
+    # 세션 갱신
+    st.session_state.prev_question = fup
+    st.session_state.prev_ground_knowledge = ground_knowledge
+    st.session_state.prev_answer = assistant_response
+    st.session_state.prev_question_type = question_type
+
+    # 새 후속질문
+    st.session_state.follow_up_question = new_followup
+
+# ----------------------------------------------------
+# 2) 새 user_input 처리
+# ----------------------------------------------------
+user_input = st.chat_input("질문을 입력하세요...")
+
+if user_input:
+    # user 발화
+    st.session_state.chat_history.append(("user", user_input))
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    with st.chat_message("assistant"):
+        placeholder = st.empty()
+        placeholder.markdown("AI 조교가 생각 중입니다... 🤔")
+
+    # 꼬리 질문인지 판단
+    if st.session_state.prev_question:
+        is_tail_question = tail_question_decider.tail_question_generator(
+            st.session_state.prev_question,
+            user_input
+        )
         if is_tail_question.lower() == "yes":
+            # 꼬리 질문 처리
             is_main_question = False
             assistant_response = tail_question_process.tail_question_process(
                 st.session_state.prev_question,
@@ -168,52 +210,43 @@ if user_input:
             )
             ground_knowledge = st.session_state.prev_ground_knowledge
             question_type = st.session_state.prev_question_type
+            follow_up_question = None
         else:
-            # 새로운 질문 처리
+            # 새 질문 처리
             is_main_question = True
-            ground_knowledge, assistant_response, question_type = chat_process(user_input)
-            
-            # "해당없음"일 경우 처리 (더 진행하지 않음)
-            if assistant_response.startswith("❌"):
-                st.session_state.chat_history.append(("ai", assistant_response))
-                st.session_state.prev_ground_knowledge = ground_knowledge
-                st.session_state.prev_question = user_input
-                st.session_state.prev_question_type = question_type
-                st.session_state.prev_answer = assistant_response
-                save_chat_to_db(user_input, assistant_response, True, question_type)
-                st.rerun()  # UI 새로고침
-            else:
-                st.session_state.prev_ground_knowledge = ground_knowledge
-                st.session_state.prev_answer = assistant_response
-                st.session_state.prev_question_type = question_type
-                st.session_state.prev_question = user_input
+            ground_knowledge, assistant_response, question_type, follow_up_question = chat_process(user_input)
     else:
-        # 첫 질문 처리
-        ground_knowledge, assistant_response, question_type = chat_process(user_input)
-        
-        # "해당없음"일 경우 처리 (더 진행하지 않음)
-        if assistant_response.startswith("❌"):
-            st.session_state.chat_history.append(("ai", assistant_response))
-            st.session_state.prev_ground_knowledge = ground_knowledge
-            st.session_state.prev_answer = assistant_response
-            st.session_state.prev_question = user_input
-            st.session_state.prev_question_type = question_type
-            save_chat_to_db(user_input, assistant_response, True, question_type)
-            st.rerun()  # UI 새로고침
-        else:
-            st.session_state.prev_ground_knowledge = ground_knowledge
-            st.session_state.prev_answer = assistant_response
-            st.session_state.prev_question = user_input
-            st.session_state.prev_question_type = question_type
-    
+        is_main_question = True
+        ground_knowledge, assistant_response, question_type, follow_up_question = chat_process(user_input)
+
     placeholder.markdown(assistant_response)
-    
+    st.session_state.chat_history.append(("assistant", assistant_response))
+
+    # DB 저장
     save_chat_to_db(user_input, assistant_response, is_main_question, question_type)
 
-    # AI 응답을 채팅창에 추가
-    st.session_state.chat_history.append(("ai", assistant_response))
-
-    # 현재 질문을 이전 질문으로 저장
+    # 세션 갱신
     st.session_state.prev_question = user_input
+    st.session_state.prev_ground_knowledge = ground_knowledge
+    st.session_state.prev_answer = assistant_response
+    st.session_state.prev_question_type = question_type
+
+    # 후속질문
+    if assistant_response.startswith("❌"):
+        st.session_state.follow_up_question = None
+    else:
+        st.session_state.follow_up_question = follow_up_question
+
+# ----------------------------------------------------
+# 3) 현재 후속질문이 있으면, "버튼"을 즉시 표시
+# ----------------------------------------------------
+if st.session_state.follow_up_question:
+    pressed = st.button(st.session_state.follow_up_question)
+    if pressed:
+        st.session_state.follow_up_clicked = True
+        st.rerun()  # 버튼 누르는 순간 재실행 → (1) 로직으로 진입
+
+# 
+
 
 
