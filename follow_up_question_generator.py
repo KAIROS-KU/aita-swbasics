@@ -2,16 +2,12 @@ from langchain.vectorstores.neo4j_vector import Neo4jVector
 from openai import OpenAI
 from neo4j import GraphDatabase
 import config
-from langchain_neo4j import Neo4jVector, Neo4jGraph
-from langchain_neo4j import GraphCypherQAChain
+from langchain_neo4j import Neo4jVector, Neo4jGraph, GraphCypherQAChain
 from openai import OpenAI
 from langchain_community.vectorstores import Neo4jVector
-from langchain_neo4j import GraphCypherQAChain
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_community.chat_message_histories import ChatMessageHistory
 
 
 client = OpenAI(api_key=config.OPENAI_API_KEY)
