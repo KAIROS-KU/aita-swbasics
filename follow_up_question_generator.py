@@ -1,4 +1,5 @@
 from langchain.vectorstores.neo4j_vector import Neo4jVector
+import logging
 from openai import OpenAI
 from neo4j import GraphDatabase
 import config
@@ -8,21 +9,25 @@ from langchain_community.vectorstores import Neo4jVector
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain
+from langchain.prompts import MessagesPlaceholder
+import time
+from langchain_core.callbacks import BaseCallbackHandler
 
 
 client = OpenAI(api_key=config.OPENAI_API_KEY)
 neo4j_driver = GraphDatabase.driver(config.NEO4J_URI, auth=(config.NEO4J_USER, config.NEO4J_PASSWORD))
 embedding_function = OpenAIEmbeddings(model="text-embedding-ada-002", api_key=config.OPENAI_API_KEY)
-graph = Neo4jGraph(url=config.NEO4J_URI, username=config.NEO4J_USER, password=config.NEO4J_PASSWORD, refresh_schema=False, sanitize=True)
+graph = Neo4jGraph(url=config.NEO4J_URI, username=config.NEO4J_USER, password=config.NEO4J_PASSWORD, refresh_schema=True, sanitize=True)
 
 llm = ChatOpenAI(model="gpt-4o", api_key=config.OPENAI_API_KEY)
+
 neo4j_vector = Neo4jVector.from_existing_graph(
     embedding=embedding_function,
     index_name="vector_index",
     retrieval_query="MATCH (n) WHERE n.embedding IS NOT NULL RETURN n",
     graph=graph,
     search_type="similarity",
-    node_label="Concept",
+    node_label="Chunk",
     embedding_node_property="embedding",
     text_node_properties=["name", "description"]
 )
@@ -37,6 +42,36 @@ graph_qa_chain = GraphCypherQAChain.from_llm(
     top_k=3,
     allow_dangerous_requests=True
 )
+
+# def get_graph_response(question):
+#     try:
+#         response = graph_qa_chain.run(question)
+#         return {"response": response, "mode": "graph"}
+#     except Exception as e:
+#         logging.error(f"Error in graph response: {e}")
+#         return {"response": "An error occurred.", "mode": "graph"}
+    
+# def get_rag_response(question):
+#     try:
+#         docs = neo4j_vector.similarity_search(question, k=3)
+#         context = "\n\n".join([doc.page_content for doc in docs])
+
+#         ai_response = llm.invoke(f"Context: {context}\n\nQuestion: {question}")
+#         return {"response": ai_response, "context": context, "mode": "rag"}
+#     except Exception as e:
+#         logging.error(f"Error retrieving RAG response: {e}")
+#         return {"response": "An error occurred.", "mode": "rag"}
+
+# def chat_with_graph(question, mode="graph"):
+#     if mode == "graph":
+#         return get_graph_response(question)
+#     elif mode == "rag":
+#         return get_rag_response(question)
+#     else:
+#         return {"response": "Invalid mode."}
+
+# response_graph = chat_with_graph("리스트와 튜플의 차이가 뭐야?", mode="rag")
+# print(response_graph)
 
 # ✅ 후속 질문을 생성하는 LangChain 프롬프트
 follow_up_prompt = ChatPromptTemplate.from_template(
@@ -61,7 +96,8 @@ follow_up_prompt = ChatPromptTemplate.from_template(
 follow_up_chain = LLMChain(llm=llm, prompt=follow_up_prompt)
 
 def follow_up_question_generator(prev_question):
-    follow_up_question = follow_up_chain.run(prev_question=prev_question)
+    graph_result = graph_qa_chain.run(prev_question)
+    follow_up_question = follow_up_chain.run(prev_question=prev_question, context=graph_result)
     return follow_up_question.strip()
 
 
