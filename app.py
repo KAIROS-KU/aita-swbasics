@@ -10,6 +10,7 @@ import tail_question_process
 import follow_up_question_generator
 from predibase import Predibase
 import random
+import uuid
 
 # Supabase & OpenAI 클라이언트 초기화
 supabase = create_client(config.SUPABASE_URL, config.SUPABASE_API_KEY)
@@ -62,15 +63,21 @@ def coding_question_process_two(txt):
     return coding_answer
 
 def save_chat_to_db(user_question, ai_answer, is_main_question, question_type):
+    chat_id = str(uuid.uuid4())
     data = {
+        "id": chat_id,
         "question": user_question,
         "answer": ai_answer,
         "main_question": is_main_question,
         "question_type": question_type
     }
     supabase.table("CONSULTING_CHAT").insert(data).execute()
-    return
+    return chat_id
 
+
+def update_answer_eval(chat_id, evaluation):
+    response = supabase.table("CONSULTING_CHAT").update({"answer_eval": evaluation}).eq("id", chat_id).execute()
+    return response
 
 
 # Streamlit UI 설정
@@ -100,6 +107,8 @@ with st.sidebar:
     )
 
 # 챗봇 상태 관리
+if "chat_evaluations" not in st.session_state:
+    st.session_state.chat_evaluations = {}
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []  # 대화 기록 저장
 if "prev_question" not in st.session_state:
@@ -114,6 +123,15 @@ if "follow_up_question" not in st.session_state:
     st.session_state.follow_up_question = None
 if "follow_up_clicked" not in st.session_state:
     st.session_state.follow_up_clicked = False
+if "chat_ids" not in st.session_state:
+    st.session_state.chat_ids = {}
+if "eval_true_clicked" not in st.session_state:
+    st.session_state.eval_true_clicked = False
+if "eval_false_clicked" not in st.session_state:
+    st.session_state.eval_false_clicked = False
+if "answer_eval" not in st.session_state:
+    st.session_state.answer_eval = False
+
 
 # AI 조교의 응답을 생성하는 함수
 def chat_process(txt):
@@ -146,6 +164,21 @@ for sender, message in st.session_state.chat_history:
     with st.chat_message("user" if sender == "user" else "assistant"):
         st.markdown(message)
 
+# 평가 버튼이 눌렸다면 DB 업데이트 수행
+if st.session_state.eval_true_clicked:
+    true_chat_id = st.session_state.chat_ids[len(st.session_state.chat_history) - 1]
+    update_answer_eval(true_chat_id, True)
+    st.session_state.eval_true_clicked = False
+    st.session_state.answer_eval = False
+    st.rerun()
+
+if st.session_state.eval_false_clicked:
+    false_chat_id = st.session_state.chat_ids[len(st.session_state.chat_history) - 1]
+    update_answer_eval(false_chat_id, False)
+    st.session_state.eval_false_clicked = False
+    st.session_state.answer_eval = False
+    st.rerun()
+
 if st.session_state.follow_up_clicked and st.session_state.follow_up_question:
     # 후속질문을 처리
     st.session_state.follow_up_clicked = False  # 클릭 상태 해제
@@ -167,7 +200,13 @@ if st.session_state.follow_up_clicked and st.session_state.follow_up_question:
     st.session_state.chat_history.append(("assistant", assistant_response))
 
     # DB 저장
-    save_chat_to_db(fup, assistant_response, True, question_type)
+    chat_id = save_chat_to_db(fup, assistant_response, True, question_type)
+
+    if st.session_state.chat_history:
+        last_index = len(st.session_state.chat_history) - 1
+        last_speaker, _ = st.session_state.chat_history[last_index]
+        if last_speaker == "assistant":
+            st.session_state.answer_eval = True
 
     # 세션 갱신
     st.session_state.prev_question = fup
@@ -177,6 +216,7 @@ if st.session_state.follow_up_clicked and st.session_state.follow_up_question:
 
     # 새 후속질문
     st.session_state.follow_up_question = new_followup
+
 
 # ----------------------------------------------------
 # 2) 새 user_input 처리
@@ -223,7 +263,14 @@ if user_input:
     st.session_state.chat_history.append(("assistant", assistant_response))
 
     # DB 저장
-    save_chat_to_db(user_input, assistant_response, is_main_question, question_type)
+    chat_id = save_chat_to_db(user_input, assistant_response, is_main_question, question_type)
+    st.session_state.chat_ids[len(st.session_state.chat_history) - 1] = chat_id
+
+    if st.session_state.chat_history:
+        last_index = len(st.session_state.chat_history) - 1
+        last_speaker, _ = st.session_state.chat_history[last_index]
+        if last_speaker == "assistant":
+            st.session_state.answer_eval = True
 
     # 세션 갱신
     st.session_state.prev_question = user_input
@@ -237,6 +284,18 @@ if user_input:
     else:
         st.session_state.follow_up_question = follow_up_question
 
+if st.session_state.answer_eval:
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("👍 Good"):
+            st.session_state.eval_true_clicked = True
+            st.rerun()
+    with col2:
+        if st.button("👎 Bad"):
+            st.session_state.eval_false_clicked = True
+            st.rerun()
+
+
 # ----------------------------------------------------
 # 3) 현재 후속질문이 있으면, "버튼"을 즉시 표시
 # ----------------------------------------------------
@@ -246,7 +305,6 @@ if st.session_state.follow_up_question:
         st.session_state.follow_up_clicked = True
         st.rerun()  # 버튼 누르는 순간 재실행 → (1) 로직으로 진입
 
-# 
 
 
 
