@@ -12,7 +12,6 @@ SYSTEM_PROMPT = '''
 
 
 def coding_question_process(question):
-    payload_input = f"<|system|>{SYSTEM_PROMPT}</s><|user|>{question}</s><|assistant|>"
     payload = {
         "prompt": f"파이썬에서 {question}"
     }
@@ -22,9 +21,10 @@ def coding_question_process(question):
     }
     response = requests.post(PROXY_API_URL, json=payload, headers=headers)
     if response.status_code == 200:
-        answer = response.json()['choices'][0]['text']
+        answer = response.json()['response']
     else:
         answer = f"오류 발생: API 요청 실패"
 
     return answer
+
 
