@@ -450,8 +450,8 @@ def process_documents(docs, question, llm, model,chat_mode_settings):
 def process_chat_response(question, model, graph, document_names, chat_mode_settings):
     try:
         llm, doc_retriever, model_version = setup_chat(model, graph, document_names, chat_mode_settings)
-        
-        docs,transformed_question = retrieve_documents(doc_retriever, question)  
+        question_list = [question]
+        docs,transformed_question = retrieve_documents(doc_retriever, question_list)  
 
         if docs:
             content, result, total_tokens,formatted_docs = process_documents(docs, question, llm, model, chat_mode_settings)
@@ -606,7 +606,8 @@ def generate_follow_up_question(prev_question):
     ex2) 파이썬에서 데이터 형 변환하는 법을 자세히 설명해줘.
     ex3) 리스트와 튜플의 각각의 장단점을 자세하게 설명해줘.
     """
-    QA_RAG_response = QA_RAG(graph, "gpt-4o", prompt, "[]", "graph_vector_fulltext")
+    prompt2 = "리스트와 튜플의 차이점이 뭐야?"
+    QA_RAG_response = QA_RAG(graph, "gpt-4o", prompt2, "[]", "graph_vector_fulltext")
     follow_up_question = QA_RAG_response
     return follow_up_question
 

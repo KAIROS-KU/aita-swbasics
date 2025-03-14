@@ -8,9 +8,10 @@ import ground_knowledge_generator
 import tail_question_decider
 import tail_question_process
 import follow_up_question_generator
-from predibase import Predibase
 import random
 import uuid
+import coding_question_process
+from predibase import Predibase
 
 # Supabase & OpenAI 클라이언트 초기화
 supabase = create_client(config.SUPABASE_URL, config.SUPABASE_API_KEY)
@@ -144,17 +145,22 @@ def chat_process(txt):
         return ground_knowledge, "❌ 해당 질문은 답변할 수 없습니다. 담당 조교님 혹은 교수님께 직접 문의해보세요.", "해당없음", None
     elif ground_knowledge.strip() == "코딩":
         follow_up_question = follow_up_question_generator.follow_up_question_generator(txt)
-        coding_functions = [coding_question_process_one, coding_question_process_two]
+        try:
+            answer = coding_question_process.coding_question_process(txt)
+            return ground_knowledge, answer, "코딩", follow_up_question
+        except Exception as e:
+            coding_functions = [coding_question_process_one, coding_question_process_two]
         
-        # 랜덤으로 선택 후 실행, 오류 발생 시 다른 함수 실행
-        random.shuffle(coding_functions)  # 랜덤으로 순서 섞기
-        for func in coding_functions:
-            try:
-                answer = func(txt)
-                return ground_knowledge, answer, "코딩", follow_up_question
-            except Exception as e:
-                return
-        return "코딩", answer_generator.answer_generator(txt, ground_knowledge), "코딩", follow_up_question
+            # 랜덤으로 선택 후 실행, 오류 발생 시 다른 함수 실행
+            random.shuffle(coding_functions)  # 랜덤으로 순서 섞기
+            for func in coding_functions:
+                try:
+                    answer = func(txt)
+                    return ground_knowledge, answer, "코딩", follow_up_question
+                except Exception as e:
+                    return
+            return "코딩", answer_generator.answer_generator(txt, ground_knowledge), "코딩", follow_up_question
+
     else:
         answer = answer_generator.answer_generator(txt, ground_knowledge)
         return ground_knowledge, answer, question_type, None
